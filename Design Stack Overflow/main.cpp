@@ -1,6 +1,13 @@
+#include <algorithm>
 #include <iostream>
 #include <string>
 #include <vector>
+
+#define upVoteQuestionReputation 10
+#define upVoteAnswerReputation 15
+
+class Member;
+class Question;
 
 enum QuestionStatus {
     DRAFT,
@@ -48,6 +55,18 @@ class Account {
             email_ = email;
             password_ = password;
         }
+
+        Member* login(std::string email, std::string password) {
+            if (email == email_ && password == password_) {
+                return new Member(*this);
+            }
+            return nullptr;
+        }
+
+        std::string getEmail() {
+            return email_;
+        }
+
     private:
         std::string name_;
         std::string email_;
@@ -56,7 +75,7 @@ class Account {
 
 class Member : public Guest {
     public:
-        Member(Account account) : account_(account) {}
+        Member(Account account) : account_(account), reputation_(0), badges_() {}
 
         std::vector<Badge> getBadges() {
             return badges_;
@@ -67,11 +86,10 @@ class Member : public Guest {
         }
 
         void updateReputation(int reputation) {
-            reputation_ += reputation;
-            reputation_ = std::max(reputation, 0);
-            return;
+            reputation_ = std::max(reputation_ + reputation, 0);
         }
-    private:   
+
+    private:
         Account account_;
         int reputation_;
         std::vector<Badge> badges_;
@@ -79,12 +97,17 @@ class Member : public Guest {
 
 class Question {
     public:
-        Question(std::string question, std::vector<Tag> tags = {}) {
-            question_ = question;
-            tags_ = tags;
-        }
-        
+        Question(Member member, std::string question, std::vector<Tag> tags = {}) : member_(member), question_(question), tags_(tags) {}
 
+        void upVote() {
+            member_.updateReputation(upVoteQuestionReputation);
+            votes_++;
+        }
+
+        void remoteVote() {
+            member_.updateReputation(-upVoteQuestionReputation);
+            votes_--;
+        }
 
     private:
         std::string question_;
@@ -94,6 +117,63 @@ class Question {
         int votes_;
         bool isClosed_;
         bool isDeleted_;
+};
+
+class Answer {
+    public:
+        Answer(Member member, Question question, std::string answer) : member_(member), question_(question), answer_(answer) {}
+
+        Member getMember() {
+            return member_;
+        }
+
+        int getVotes() {
+            return votes_;
+        }
+
+        void upVote() {
+            member_.updateReputation(upVoteAnswerReputation);
+            votes_++;
+        }
+
+        void removeVote() {
+            member_.updateReputation(-upVoteAnswerReputation);
+            votes_--;
+        }
+
+        std::vector<Comment> getComments() {
+            return comments_;
+        }
+
+    private:
+        std::string answer_;
+        Member member_;
+        Question question_;
+        int votes_;
+        std::vector<Comment> comments_;
+};
+
+class Comment {
+    public:
+        
+
+    private:
+        std::string comment_;
+        Member member_;
+        Answer answer_;
+};
+
+class QuestionStore {
+    public:
+        Question askQuestion(Member member, std::string question, std::vector<Tag> tags) {
+            Question newQuestion(member, question, tags);
+            questions_.push_back(newQuestion);
+            return newQuestion;
+        }
+
+    private:
+        std::vector<Question> questions_;
+        std::vector<Tag> tags_;
 };
 
 int main() {
