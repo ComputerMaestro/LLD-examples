@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #define upVoteQuestionReputation 10
 #define upVoteAnswerReputation 15
@@ -43,7 +44,7 @@ class Tag {
 
 class Guest {
     public:
-        std::vector<Question> search(std::string query, std::vector<std::string> tags = {}) {
+        std::vector<Question> search(std::string query = "", std::vector<std::string> tags = {}) {
 
         }
 };
@@ -56,9 +57,15 @@ class Account {
             password_ = password;
         }
 
-        Member* login(std::string email, std::string password) {
-            if (email == email_ && password == password_) {
-                return new Member(*this);
+        static void registerAccount(std::string name, std::string email, std::string password) {
+            accounts_.push_back(Account(name, email, password));
+        }
+
+        static Member* login(std::string email, std::string password) {
+            for (Account acc: accounts_) {
+                if(email == acc.email_ && password == acc.password_) {
+                    return new Member(acc);
+                }
             }
             return nullptr;
         }
@@ -67,10 +74,15 @@ class Account {
             return email_;
         }
 
+        std::string getName() {
+            return name_;
+        }
+
     private:
         std::string name_;
         std::string email_;
         std::string password_;
+        static std::vector<Account> accounts_;
 };
 
 class Member : public Guest {
@@ -109,11 +121,47 @@ class Question {
             votes_--;
         }
 
+        void close() {
+            isClosed_ = false;
+        }
+
+        void reOpen() {
+            isClosed_ = true;
+        }
+
+        void deleteQuestion() {
+            isDeleted_ = true; 
+        }
+
+        void undelete() {
+            isDeleted_ = false;
+        }
+
+        std::vector<Answer> getAnswers() {
+            return answers_;
+        }
+
+        int getVotes() {
+            return votes_;
+        }
+
+        bool getIsClosed() {
+            return isClosed_;
+        }
+
+        bool getIsDeleted() {
+            return isDeleted_;
+        }
+
+        std::vector<Tag> getTags() {
+            return tags_;
+        }
+
     private:
         std::string question_;
         std::vector<Tag> tags_;
         Member member_;
-        std::vector<int> answers_;
+        std::vector<Answer> answers_;
         int votes_;
         bool isClosed_;
         bool isDeleted_;
@@ -163,17 +211,27 @@ class Comment {
         Answer answer_;
 };
 
-class QuestionStore {
+class SearchIndex {
     public:
-        Question askQuestion(Member member, std::string question, std::vector<Tag> tags) {
+        static Question askQuestion(Member member, std::string question, std::vector<Tag> tags) {
             Question newQuestion(member, question, tags);
             questions_.push_back(newQuestion);
             return newQuestion;
         }
 
+        static std::vector<Question> search(std::vector<Tag> tags = {}) {
+            std::vector<Question> results;
+            for (Tag tag: tags) {
+                for (int questionIdx: tagsToQuestionIndex_[tag.getName()]) {
+                    results.push_back(questions_[questionIdx]);
+                }
+            }
+            return results;
+        }
+
     private:
-        std::vector<Question> questions_;
-        std::vector<Tag> tags_;
+        static std::vector<Question> questions_;
+        static std::unordered_map<Tag, std::vector<int>> tagsToQuestionIndex_;
 };
 
 int main() {
